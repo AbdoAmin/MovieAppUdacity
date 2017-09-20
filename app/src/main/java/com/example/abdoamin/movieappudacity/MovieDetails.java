@@ -12,6 +12,8 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -21,10 +23,14 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.abdoamin.movieappudacity.adapter.ReviewRecycleAdapter;
+import com.example.abdoamin.movieappudacity.adapter.TrailersRecycleAdapter;
 import com.example.abdoamin.movieappudacity.apiRequire.ApiClient;
 import com.example.abdoamin.movieappudacity.apiRequire.ApiInterface;
 import com.example.abdoamin.movieappudacity.data.MovieContract;
 import com.example.abdoamin.movieappudacity.myObject.Movie;
+import com.example.abdoamin.movieappudacity.myObject.Review;
+import com.example.abdoamin.movieappudacity.myObject.ReviewResponse;
 import com.example.abdoamin.movieappudacity.myObject.Trailers;
 import com.example.abdoamin.movieappudacity.myObject.TrailersResponse;
 import com.squareup.picasso.Picasso;
@@ -41,9 +47,6 @@ import static com.example.abdoamin.movieappudacity.apiRequire.ApiClient.API_KEY;
 
 public class MovieDetails extends AppCompatActivity {
 
-    private static final int DELETE_LOADER_ID = 2;
-    private static final int ADD_LOADER_ID = 1;
-    private static final int IS_FAVORITE_LOADER_ID =0 ;
     Context mContext;
     Movie mMovie;
     private boolean favorite = false;
@@ -53,16 +56,13 @@ public class MovieDetails extends AppCompatActivity {
     private TextView movieRate;
     private TextView movieDate;
     private TextView movieDescription;
-    private ListView trailersLink;
-    private ArrayList<String> links = new ArrayList<String>();
-    static int position;
-    ApiInterface api_service =
-            ApiClient.getClient().create(ApiInterface.class);
+    private RecyclerView mReviewRecyclerView,mTrailersRecyclerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_movie_details);
+        getSupportActionBar().setDefaultDisplayHomeAsUpEnabled(true);
         mContext=this;
         mMovie = getIntent().getParcelableExtra("theMovie");
         favoriteIcon = (ImageView) findViewById(R.id.favorite_icon);
@@ -71,14 +71,16 @@ public class MovieDetails extends AppCompatActivity {
         movieRate = (TextView) findViewById(R.id.movie_rate);
         movieDate = (TextView) findViewById(R.id.movie_date);
         movieDescription = (TextView) findViewById(R.id.movie_overview);
-        trailersLink = (ListView) findViewById(R.id.trail_list);
+        mReviewRecyclerView= (RecyclerView) findViewById(R.id.review_RecyclerView);
+        mTrailersRecyclerView= (RecyclerView) findViewById(R.id.trail_RecyclerView);
 
-        Picasso.with(this).load(Uri.parse("https://image.tmdb.org/t/p/w185" + mMovie.getPosterPath())).into(moviePoster);
+        Picasso.with(this).load(Uri.parse(getString(R.string.image_path) + mMovie.getPosterPath())).into(moviePoster);
         movieName.setText(mMovie.getOriginal_title());
         movieDate.setText(mMovie.getReleaseDate());
         movieDescription.setText(mMovie.getOverview());
         movieRate.setText(mMovie.getVoteAverage().toString()+"/10");
-        getLoaderManager().initLoader(IS_FAVORITE_LOADER_ID, null,isFavorite);
+        IsFavoriteTask isFavorite=new IsFavoriteTask();
+        isFavorite.execute();
 
 
         favoriteIcon.setOnClickListener(new View.OnClickListener() {
@@ -86,24 +88,23 @@ public class MovieDetails extends AppCompatActivity {
             public void onClick(View v) {
 
                 if (!favorite) {
-                    getLoaderManager().initLoader(ADD_LOADER_ID, null, addFavoriteMovie);
+                    AddFavoriteMovieTask addFavoriteMovie=new AddFavoriteMovieTask();
+                    addFavoriteMovie.execute();
 
                 } else {
-                    getLoaderManager().initLoader(DELETE_LOADER_ID, null,deleteFavoriteMovie);
+                    DeleteFavoriteMovieTask deleteFavoriteMovie=new DeleteFavoriteMovieTask();
+                    deleteFavoriteMovie.execute();
                 }
 
             }
         });
 
-        TrailerTask task = new TrailerTask();
-        task.execute();
-
+        TrailerTask();
+        ReviewTask();
     }
-    public class TrailerTask extends AsyncTask<Void, Void, Void> {
 
-        @Override
-        protected Void doInBackground(Void... params) {
 
+    public void TrailerTask () {
             ApiInterface apiService =
                     ApiClient.getClient().create(ApiInterface.class);
 
@@ -111,186 +112,130 @@ public class MovieDetails extends AppCompatActivity {
             call.enqueue(new Callback<TrailersResponse>() {
                 @Override
                 public void onResponse(Call<TrailersResponse> call, Response<TrailersResponse> response) {
-                    List<Trailers> trailers = response.body().getResults();
-                    mMovie.setTrailers(trailers);
-                    for (Trailers link : mMovie.getTrailers()) {
-                        if (link.getSite().equals("YouTube"))
-                            links.add(/*"https://www.youtube.com/watch?v=" + */link.getKey());
+                    List<Trailers> trailers = new ArrayList<Trailers>();
+                    for (Trailers a :response.body().getResults())
+                    {
+                        if (a.getSite().equals("YouTube"))
+                            trailers.add(a);
                     }
-
-                    ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_list_item_1, links);
-                    trailersLink.setAdapter(adapter);
-                    trailersLink.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                        @Override
-                        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                            Intent appYoutube = new Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:" + links.get(position)));
-                            Intent webYoutube = new Intent(Intent.ACTION_VIEW,
-                                    Uri.parse("https://www.youtube.com/watch?v=" + links.get(position)));
-                            try {
-                                startActivity(appYoutube);
-                            } catch (ActivityNotFoundException ex) {
-                                startActivity(webYoutube);
-                            }
-
-                        }
-                    });
+                    mMovie.setTrailers(trailers);
+                    mTrailersRecyclerView.setLayoutManager(new LinearLayoutManager(mContext));
+                    mTrailersRecyclerView.setAdapter(new TrailersRecycleAdapter(trailers,R.layout.trailers_item,mContext));
 
                 }
 
                 @Override
                 public void onFailure(Call<TrailersResponse> call, Throwable t) {
-                    // Log error here since request failed
-                    Log.e("fff", t.toString());
+                    Log.e("<^_^>", t.toString());
                 }
             });
-            return null;
-        }
+
     }
 
-    private LoaderManager.LoaderCallbacks<Cursor> isFavorite = new LoaderManager.LoaderCallbacks<Cursor>() {
+    public void ReviewTask (){
+
+
+            ApiInterface apiService =
+                    ApiClient.getClient().create(ApiInterface.class);
+
+            Call<ReviewResponse> call = apiService.getMovieReviews(mMovie.getId(), API_KEY);
+            call.enqueue(new Callback<ReviewResponse>() {
+                @Override
+                public void onResponse(Call<ReviewResponse> call, Response<ReviewResponse> response) {
+                    List<Review> reviews = response.body().getResults();
+                    mMovie.setReviews(reviews);
+                    mReviewRecyclerView.setLayoutManager(new LinearLayoutManager(mContext));
+                    mReviewRecyclerView.setAdapter(new ReviewRecycleAdapter(reviews,R.layout.review_item,mContext));
+                }
+
+                @Override
+                public void onFailure(Call<ReviewResponse> call, Throwable t) {
+                    Log.e("<^_^>", t.toString());
+                }
+            });
+
+    }
+
+    public class IsFavoriteTask extends AsyncTask<Void, Void, Cursor>{
         @Override
-        public Loader<Cursor> onCreateLoader(int id, final Bundle loaderArgs) {
-            return new AsyncTaskLoader<Cursor>(getApplicationContext()) {
+        protected Cursor doInBackground(Void... voids) {
+            try {
+                String stringId = Integer.toString(mMovie.getId());
+                Uri uri = MovieContract.FavoriteEntry.CONTENT_URI;
+                uri = uri.buildUpon().appendPath(stringId).build();
+                return getContentResolver().query(uri,
+                        null,
+                        null,
+                        null,
+                        null);
 
-                Cursor mFavoriteMovies = null;
-                @Override
-                protected void onStartLoading() {
-                    if (mFavoriteMovies != null) {
-                        // Delivers any previously loaded data immediately
-                        deliverResult(mFavoriteMovies);
-                    } else {
-                        // Force a new load
-                        forceLoad();
-                    }
-                }
-                @Override
-                public Cursor loadInBackground() {
-                    try {
-                        String stringId = Integer.toString(mMovie.getId());
-                        Uri uri = MovieContract.FavoriteEntry.CONTENT_URI;
-                        uri = uri.buildUpon().appendPath(stringId).build();
-                        return getContentResolver().query(uri,
-                                null,
-                                null,
-                                null,
-                                null);
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                }
-                public void deliverResult(Cursor data) {
-                    mFavoriteMovies = data;
-                    super.deliverResult(data);
-                }
-
-            };
-
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
         }
 
-
         @Override
-        public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
-
-            if (data.moveToFirst()) {
+        protected void onPostExecute(Cursor cursor) {
+            if (cursor.moveToFirst()) {
                 favorite = true;
                 favoriteIcon.setImageResource(R.drawable.ic_favorite_black_24dp);
             }
+        }
+    }
 
 
+    public class AddFavoriteMovieTask extends AsyncTask<Void, Void, Uri>{
+        @Override
+        protected Uri doInBackground(Void... voids) {
+            try {
+                ContentValues value = new ContentValues();
+                value.put(MovieContract.FavoriteEntry._ID, mMovie.getId());
+                return getContentResolver().insert(MovieContract.FavoriteEntry.CONTENT_URI, value);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
         }
 
         @Override
-        public void onLoaderReset(Loader<Cursor> loader) {
-
-        }
-    };
-
-
-    private LoaderManager.LoaderCallbacks<Uri> addFavoriteMovie = new LoaderManager.LoaderCallbacks<Uri>() {
-        @Override
-        public Loader<Uri> onCreateLoader(int id, Bundle args) {
-            return new AsyncTaskLoader<Uri>(mContext) {
-                @Override
-                protected void onStartLoading() {
-                        // Force a new load
-                        forceLoad();
-
-                }
-                @Override
-                public Uri loadInBackground() {
-
-                    try {
-                        ContentValues value = new ContentValues();
-                        value.put(MovieContract.FavoriteEntry._ID, mMovie.getId());
-                        return getContentResolver().insert(MovieContract.FavoriteEntry.CONTENT_URI, value);
-                    }
-                    catch (Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-                }
-            };
-        }
-
-        @Override
-        public void onLoadFinished(Loader<Uri> loader, Uri data) {
-            if(data!=null) {
-                Toast.makeText(mContext, data.toString(), Toast.LENGTH_SHORT).show();
+        protected void onPostExecute(Uri uri) {
+            if(uri!=null) {
+                Toast.makeText(mContext, uri.toString(), Toast.LENGTH_SHORT).show();
                 favoriteIcon.setImageResource(R.drawable.ic_favorite_black_24dp);
                 favorite = !favorite;
             }
-
         }
+    }
 
+
+    public class DeleteFavoriteMovieTask extends AsyncTask<Void, Void, Integer>{
         @Override
-        public void onLoaderReset(Loader<Uri> loader) {
-
-        }
-    };
-
-
-    private LoaderManager.LoaderCallbacks<Integer> deleteFavoriteMovie = new LoaderManager.LoaderCallbacks<Integer>() {
-        @Override
-        public Loader<Integer> onCreateLoader(int id, Bundle args) {
-            return new AsyncTaskLoader<Integer>(mContext) {
-                @Override
-                protected void onStartLoading() {
-                        forceLoad();
-
-                }
-                @Override
-                public Integer loadInBackground() {
-
-                    try {
-                        String stringId = Integer.toString(mMovie.getId());
-                        Uri uri = MovieContract.FavoriteEntry.CONTENT_URI;
-                        uri = uri.buildUpon().appendPath(stringId).build();
-                        return getContentResolver().delete(uri,null,null);
-                    }
-                    catch (Exception e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                }
-                };
-        }
-
-        @Override
-        public void onLoadFinished(Loader<Integer> loader, Integer data) {
-            if (data != 0) {
-                favoriteIcon.setImageResource(R.drawable.ic_favorite_border_black_24dp);
-                favorite = !favorite;
-                Toast.makeText(mContext, "Delete: " + data.toString(), Toast.LENGTH_SHORT).show();
+        protected Integer doInBackground(Void... voids) {
+            try {
+                String stringId = Integer.toString(mMovie.getId());
+                Uri uri = MovieContract.FavoriteEntry.CONTENT_URI;
+                uri = uri.buildUpon().appendPath(stringId).build();
+                return getContentResolver().delete(uri,null,null);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+                return null;
             }
         }
 
         @Override
-        public void onLoaderReset(Loader<Integer> loader) {
-
+        protected void onPostExecute(Integer integer) {
+            if (integer != 0) {
+                favoriteIcon.setImageResource(R.drawable.ic_favorite_border_black_24dp);
+                favorite = !favorite;
+                Toast.makeText(mContext, "Delete: " + integer.toString(), Toast.LENGTH_SHORT).show();
+            }
         }
-    } ;
+    }
+
+
 
 
 }

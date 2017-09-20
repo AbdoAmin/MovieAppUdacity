@@ -28,17 +28,7 @@ public class Movie implements Parcelable{
     private Double voteAverage;
     //.....
     private List<Trailers> trailers;
-
-
-    public Movie(String posterPath, String overview, String releaseDate, Integer id, String original_title, Double voteAverage, List<Trailers> trailers) {
-        this.posterPath = posterPath;
-        this.overview = overview;
-        this.releaseDate = releaseDate;
-        this.id = id;
-        this.original_title = original_title;
-        this.voteAverage = voteAverage;
-        this.trailers = trailers;
-    }
+    private List<Review> reviews;
 
 
     protected Movie(Parcel in) {
@@ -99,6 +89,14 @@ public class Movie implements Parcelable{
 
     public void setTrailers(List<Trailers> trailers) {
         this.trailers = trailers;
+    }
+
+    public List<Review> getReviews() {
+        return reviews;
+    }
+
+    public void setReviews(List<Review> reviews) {
+        this.reviews = reviews;
     }
 
     @Override

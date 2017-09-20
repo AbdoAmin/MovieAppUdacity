@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">MovieAppUdacity</string>
+    <string name="review_author">A review by </string>
+    <string name="image_path">https://image.tmdb.org/t/p/w185</string>
+    <string name="CURRENT_MODE">Last sorted mode</string>
+
 </resources>

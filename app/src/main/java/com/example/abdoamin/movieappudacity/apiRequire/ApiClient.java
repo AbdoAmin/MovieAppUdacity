@@ -11,7 +11,7 @@ public class ApiClient {
     public static final String TOP_RATED = "Top Rated";
     public static final String POPULAR = "Most Popular";
     public static final String MY_FAVORITE = "My Fatorite";
-    public static final String API_KEY = "PAst your here";
+    public static final String API_KEY = "past your Api Key here";
     public static final String BASE_URL = "http://api.themoviedb.org/3/";
     private static Retrofit retrofit = null;
 

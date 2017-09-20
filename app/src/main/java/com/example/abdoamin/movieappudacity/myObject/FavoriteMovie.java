@@ -19,9 +19,4 @@ public class FavoriteMovie {
     public int getID() {
         return this._id;
     }
-
-    // setting id
-    public void setID(int id) {
-        this._id = id;
-    }
 }

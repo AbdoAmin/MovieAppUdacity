@@ -5,6 +5,7 @@ package com.example.abdoamin.movieappudacity.apiRequire;
  */
 import com.example.abdoamin.movieappudacity.myObject.Movie;
 import com.example.abdoamin.movieappudacity.myObject.MoviesResponse;
+import com.example.abdoamin.movieappudacity.myObject.ReviewResponse;
 import com.example.abdoamin.movieappudacity.myObject.TrailersResponse;
 
 import retrofit2.Call;
@@ -25,6 +26,9 @@ public interface ApiInterface {
 
     @GET("movie/{movie_id}/videos")
     Call<TrailersResponse> getMovieTrailers(@Path("movie_id") Integer id, @Query("api_key") String apiKey);
+
+    @GET("movie/{movie_id}/reviews")
+    Call<ReviewResponse> getMovieReviews(@Path("movie_id") Integer id, @Query("api_key") String apiKey);
 
 
 }
