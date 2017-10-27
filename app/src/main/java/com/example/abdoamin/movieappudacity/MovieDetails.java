@@ -1,5 +1,6 @@
 package com.example.abdoamin.movieappudacity;
 
+import android.annotation.SuppressLint;
 import android.app.LoaderManager;
 import android.content.ActivityNotFoundException;
 import android.content.AsyncTaskLoader;
@@ -58,6 +59,7 @@ public class MovieDetails extends AppCompatActivity {
     private TextView movieDescription;
     private RecyclerView mReviewRecyclerView,mTrailersRecyclerView;
 
+    @SuppressLint("RestrictedApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -180,6 +182,7 @@ public class MovieDetails extends AppCompatActivity {
             if (cursor.moveToFirst()) {
                 favorite = true;
                 favoriteIcon.setImageResource(R.drawable.ic_favorite_black_24dp);
+                cursor.close();
             }
         }
     }
@@ -234,8 +237,6 @@ public class MovieDetails extends AppCompatActivity {
             }
         }
     }
-
-
 
 
 }

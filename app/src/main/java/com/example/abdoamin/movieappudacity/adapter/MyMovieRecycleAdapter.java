@@ -42,14 +42,13 @@ public class MyMovieRecycleAdapter extends RecyclerView.Adapter<MyMovieRecycleAd
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
 
-        Picasso.with(context).load(Uri.parse("https://image.tmdb.org/t/p/w185"+movies.get(position).getPosterPath())).into( holder.moviePoster);
+        Picasso.with(context).load(Uri.parse("https://image.tmdb.org/t/p/w500"+movies.get(position).getPosterPath())).into( holder.moviePoster);
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
                 Intent intent=new Intent(context,MovieDetails.class);
                 intent.putExtra("theMovie",movies.get(position));
-
                 context.startActivity(intent);
             }
         });

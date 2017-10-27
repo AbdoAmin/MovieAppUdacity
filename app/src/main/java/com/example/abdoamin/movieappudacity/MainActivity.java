@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
@@ -53,11 +54,15 @@ public class MainActivity extends AppCompatActivity {
     GridLayoutManager mGridLayoutManager;
     private ProgressBar mProgressBar;
     private TextView mTextView;
+    private String mode;
+    private RecyclerView.OnScrollListener mOnScrollListener;
+    private Boolean monCreate=false;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        monCreate=true;
         setContentView(R.layout.activity_main);
         mContext = this;
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -65,8 +70,28 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         mGridLayoutManager = new GridLayoutManager(mContext, 2);
         mRecyclerView.setLayoutManager(mGridLayoutManager);
-        //get last mode lunched
-        getMyPrefrance();
+
+
+        if(savedInstanceState!=null){
+            mode=savedInstanceState.getString("mode");
+            mPageNum=savedInstanceState.getInt("mPageNum");
+            movies=savedInstanceState.getParcelableArrayList("Movies");
+            mMyMovieRecycleAdapter = new MyMovieRecycleAdapter(movies, R.layout.movie_item, mContext);
+            mRecyclerView.setAdapter(mMyMovieRecycleAdapter);
+            getSupportActionBar().setTitle(mode);
+            mRecyclerView.smoothScrollToPosition(savedInstanceState.getInt("postion"));
+            mOnScrollListener=new EndlessRecyclerViewScrollListener(mGridLayoutManager) {
+                @Override
+                public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
+                    getMorePage(page,mode);
+                }
+            };
+            mRecyclerView.addOnScrollListener(mOnScrollListener);
+
+        }else {
+            //get last mode lunched
+            getMyPrefrance();
+        }
 
     }
 
@@ -96,6 +121,8 @@ public class MainActivity extends AppCompatActivity {
     //get Api and pass response to mRcycleview to represend movies as sorted by mode parameter
     private void getMoviesList(final String mode) {
         if (checkConnection()) {
+            mPageNum=1;
+            mRecyclerView.setVisibility(View.VISIBLE);
             movies.clear();
             mTextView.setVisibility(View.GONE);
             mProgressBar.setVisibility(View.VISIBLE);
@@ -117,13 +144,15 @@ public class MainActivity extends AppCompatActivity {
                     public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
                         mProgressBar.setVisibility(View.GONE);
                         movies = response.body().getResults();
-                        mRecyclerView.setAdapter(new MyMovieRecycleAdapter(movies, R.layout.movie_item, mContext));
-                        mRecyclerView.addOnScrollListener(new EndlessRecyclerViewScrollListener(mGridLayoutManager) {
+                        mMyMovieRecycleAdapter = new MyMovieRecycleAdapter(movies, R.layout.movie_item, mContext);
+                        mRecyclerView.setAdapter(mMyMovieRecycleAdapter);
+                        mOnScrollListener=new EndlessRecyclerViewScrollListener(mGridLayoutManager) {
                             @Override
                             public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
                                 getMorePage(page,mode);
                             }
-                        });
+                        };
+                        mRecyclerView.addOnScrollListener(mOnScrollListener);
                     }
 
                     @Override
@@ -151,8 +180,11 @@ public class MainActivity extends AppCompatActivity {
             case POPULAR:
                 call = apiService.getPopular(API_KEY, page);
                 break;
+            default:
+                return;
         }
 
+        this.mPageNum=page;
         call.enqueue(new Callback<MoviesResponse>() {
             @Override
             public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
@@ -171,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    //Loader part to get My Favorite Movie from db by contentProvider as new thread
+    // part to get My Favorite Movie from db by contentProvider as new thread
 
     public class GetFavoriteMovie extends AsyncTask<Void, Void, Cursor> {
         @Override
@@ -210,6 +242,7 @@ public class MainActivity extends AppCompatActivity {
                             movies.add(response.body());
                             if (favoriteMovieList.size() == movies.size()) {
                                 mProgressBar.setVisibility(View.GONE);
+                                mRecyclerView.setLayoutManager(mGridLayoutManager);
                                 mRecyclerView.setAdapter(new MyMovieRecycleAdapter(movies, R.layout.movie_item, mContext));
                                 mRecyclerView.clearOnScrollListeners();
                             }
@@ -222,10 +255,12 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 }
+                cursor.close();
             } else {
                 mTextView.setVisibility(View.VISIBLE);
                 mTextView.setText("you haven't Favorite Movie yet");
                 mProgressBar.setVisibility(View.GONE);
+                mRecyclerView.setVisibility(View.GONE);
             }
         }
     }
@@ -238,11 +273,13 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences.Editor editor = getSharedPreferences(getString(R.string.CURRENT_MODE), MODE_PRIVATE).edit();
         editor.putString(getString(R.string.CURRENT_MODE), mode);
         editor.apply();
+        this.mode=mode;
     }
 
     private void getMyPrefrance() {
         SharedPreferences prefs = getSharedPreferences(getString(R.string.CURRENT_MODE), MODE_PRIVATE);
-        getMoviesList(prefs.getString(getString(R.string.CURRENT_MODE), TOP_RATED));
+        mode=prefs.getString(getString(R.string.CURRENT_MODE), TOP_RATED);
+        getMoviesList(mode);
     }
     //End..
 
@@ -253,5 +290,26 @@ public class MainActivity extends AppCompatActivity {
                 (ConnectivityManager) mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo mNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
         return mNetworkInfo != null && mNetworkInfo.isConnectedOrConnecting();
+    }
+
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putParcelableArrayList("Movies", (ArrayList<? extends Parcelable>) movies);
+        outState.putInt("postion",mGridLayoutManager.findFirstVisibleItemPosition());
+        outState.putString("mode",mode);
+        outState.putInt("mPageNum",mPageNum);
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if(mode.equals(MY_FAVORITE)&&!monCreate) {
+            getMoviesList(MY_FAVORITE);
+        }
+        else
+            monCreate=false;
+
     }
 }

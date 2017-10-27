@@ -35,10 +35,11 @@ public class TrailersRecycleAdapter extends RecyclerView.Adapter<TrailersRecycle
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(mTrailersLayout,parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(mTrailersLayout, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
         return viewHolder;
     }
+
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         holder.name.setText(mTrailers.get(position).getName());
@@ -49,9 +50,11 @@ public class TrailersRecycleAdapter extends RecyclerView.Adapter<TrailersRecycle
                 Intent webYoutube = new Intent(Intent.ACTION_VIEW,
                         Uri.parse("https://www.youtube.com/watch?v=" + mTrailers.get(position).getKey()));
                 try {
-                    context.startActivity(appYoutube);
+                    if (appYoutube.resolveActivity(context.getPackageManager()) != null)
+                        context.startActivity(appYoutube);
                 } catch (ActivityNotFoundException ex) {
-                    context.startActivity(webYoutube);
+                    if (webYoutube.resolveActivity(context.getPackageManager()) != null)
+                        context.startActivity(webYoutube);
                 }
             }
         });
@@ -63,11 +66,11 @@ public class TrailersRecycleAdapter extends RecyclerView.Adapter<TrailersRecycle
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-          public TextView name;
+        public TextView name;
 
         public ViewHolder(View itemView) {
             super(itemView);
-            name= (TextView) itemView.findViewById(R.id.trailer_name);
+            name = (TextView) itemView.findViewById(R.id.trailer_name);
 
         }
     }
